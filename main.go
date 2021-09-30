@@ -37,6 +37,13 @@ type Unspent struct {
 	Confirmed       bool
 }
 
+func (u Unspent) Key() Key {
+	return Key{
+		TxID: u.TxID,
+		VOut: u.VOut,
+	}
+}
+
 var (
 	dbDir = "unspents"
 	key   = Key{
@@ -55,11 +62,49 @@ func main() {
 	}
 	defer closeDb(db)
 
-	elem, err := find(db, key)
+	elem := &Unspent{
+		TxID: "foobar",
+		VOut: 0,
+	}
+	done, err := add(db, *elem)
+	if err != nil {
+		log.Fatal("error while adding elem:", err)
+	}
+	if done {
+		fmt.Println("-----------------------------")
+		fmt.Println("added elem to db")
+		fmt.Println("-----------------------------")
+	}
+
+	newKey := Key{
+		TxID: "foobar",
+		VOut: 0,
+	}
+
+	fmt.Println("searching for newly added elem")
+	fmt.Println("-----------------------------")
+
+	elem, err = find(db, newKey)
 	if err != nil {
 		log.Fatal("error while finding elem:", err)
 	}
+	fmt.Println("found with Find:", elem != nil)
 	fmt.Println("-----------------------------")
+
+	elem, err = get(db, newKey)
+	if err != nil {
+		log.Fatal("error while getting elem:", err)
+	}
+	fmt.Println("found with Get:", elem != nil)
+	fmt.Println("-----------------------------")
+
+	fmt.Println("searching for existing elem")
+	fmt.Println("-----------------------------")
+
+	elem, err = find(db, key)
+	if err != nil {
+		log.Fatal("error while finding elem:", err)
+	}
 	fmt.Println("found with Find:", elem != nil)
 	fmt.Println("-----------------------------")
 
@@ -131,4 +176,14 @@ func find(db *badgerhold.Store, key Key) (*Unspent, error) {
 	}
 	elem := elems[0]
 	return &elem, nil
+}
+
+func add(db *badgerhold.Store, elem Unspent) (bool, error) {
+	if err := db.Insert(elem.Key(), &elem); err != nil {
+		if err == badgerhold.ErrKeyExists {
+			return false, nil
+		}
+		return false, err
+	}
+	return true, nil
 }
